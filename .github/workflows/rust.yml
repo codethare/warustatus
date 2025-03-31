@@ -1,0 +1,52 @@
+name: Rust
+
+on:
+  push:
+    tags: [ "v0.0.1" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build (Release Mode)
+        run: cargo build --verbose --release
+
+      - name: Prepare Release Files
+        run: |
+          mkdir -p dist
+          cp target/release/warustatus dist/
+          cd dist
+          sha256sum myapp > sha256sum.txt
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-assets
+          path: dist/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: release-assets
+          path: dist/
+
+      - name: Update GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          # 关键配置：允许更新已存在的 Release
+          update: true
+          files: |
+            dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
