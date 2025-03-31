@@ -1,0 +1,13 @@
+[package]
+name = "warustatus"
+version = "0.0.1"
+edition = "2018"
+
+[dependencies]
+glob = "0.3"
+chrono = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+zbus = "2"         # 请根据实际版本调整
+zvariant = "3"
