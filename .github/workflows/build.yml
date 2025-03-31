@@ -23,7 +23,7 @@ jobs:
         mkdir -p dist
         cp target/release/warustatus dist/
         cd dist
-        sha256sum myapp > sha256sum.txt
+        sha256sum warustatus > sha256sum.txt
     - name: Upload Artifacts
       uses: actions/upload-artifact@v3
       with:
