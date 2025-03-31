@@ -21,9 +21,9 @@ fn main() {
         let cpu_usage = match cpu::print_cpu_usage(&prev_cpu) {
             Some((barchart, new_cpu)) => {
                 prev_cpu = new_cpu;
-                format!("CPU: {}", barchart)
+                format!("{}", barchart)
             },
-            None => "CPU: N/A".to_string()
+            None => "N/A".to_string()
         };
 
         let status_parts = vec![
