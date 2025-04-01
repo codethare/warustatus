@@ -47,6 +47,6 @@ pub fn print_network_speed() -> String {
         BOXCHARS[idx]
     };
 
-    format!("{} {:.2} ↓  {} {:.2} ↑", graph_rx, rx_mb, graph_tx, tx_mb)
+    format!("{}{:.2}↓ {}{:.2}↑", graph_rx, rx_mb, graph_tx, tx_mb)
 }
 
