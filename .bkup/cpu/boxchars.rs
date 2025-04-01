@@ -1,6 +1,5 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::process::Command;
 
 #[derive(Clone, Copy)]
 pub struct CpuTime {
@@ -61,17 +60,9 @@ pub fn read_proc_stat_sync() -> Option<(CpuTime, Vec<CpuTime>)> {
     total.map(|t| (t, per_core))
 }
 
-/// 计算 CPU 利用率并返回 BOXCHARS 条形图（每个字符代表一个逻辑核心）  
-/// 如果总体利用率超过 90%，则调用 notify-send 进行提醒
+/// 计算 CPU 利用率并返回 BOXCHARS 条形图（每个字符代表一个逻辑核心）
 pub fn print_cpu_usage(prev: &(CpuTime, Vec<CpuTime>)) -> Option<(String, (CpuTime, Vec<CpuTime>))> {
     let new = read_proc_stat_sync()?;
-    // 计算总体 CPU 利用率
-    let overall_util = new.0.utilization(prev.0);
-    if overall_util > 0.90 {
-        let _ = Command::new("notify-send")
-            .args(&["-u", "critical", "CPU Usage Warning", "CPU usage exceeded 90%"])
-            .output();
-    }
     let mut per_core_utilizations = Vec::new();
     if new.1.len() != prev.1.len() {
         return None;

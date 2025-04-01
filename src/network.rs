@@ -11,7 +11,7 @@ pub fn print_network_speed() -> String {
     let mut parts = content.split_whitespace();
     let rxprev: u64 = parts.next().unwrap_or("0").parse().unwrap_or(0);
     let txprev: u64 = parts.next().unwrap_or("0").parse().unwrap_or(0);
-
+    
     let mut rxcurrent = 0u64;
     let mut txcurrent = 0u64;
     for entry in glob("/sys/class/net/[ew]*").unwrap().filter_map(Result::ok) {
@@ -27,13 +27,26 @@ pub fn print_network_speed() -> String {
             }
         }
     }
-
+    
     let diff_rx = rxcurrent.saturating_sub(rxprev) as f64;
     let diff_tx = txcurrent.saturating_sub(txprev) as f64;
     let rx_mb = diff_rx / 1e6;
     let tx_mb = diff_tx / 1e6;
     let _ = fs::write(logfile, format!("{} {}", rxcurrent, txcurrent));
+    
+    // 添加 BOXCHARS 效果：以 10 MB/s 为满量程（可根据实际情况调整）
+    const BOXCHARS: [char; 8] = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+    let graph_rx = {
+        let ratio = (rx_mb / 10.0).min(1.0);
+        let idx = (ratio * 7.0).round() as usize;
+        BOXCHARS[idx]
+    };
+    let graph_tx = {
+        let ratio = (tx_mb / 10.0).min(1.0);
+        let idx = (ratio * 7.0).round() as usize;
+        BOXCHARS[idx]
+    };
 
-    format!("{:.2}↓ {:.2}↑", rx_mb, tx_mb)
+    format!("{} {:.2} ↓  {} {:.2} ↑", graph_rx, rx_mb, graph_tx, tx_mb)
 }
 
