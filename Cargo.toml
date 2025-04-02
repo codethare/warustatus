@@ -4,6 +4,6 @@ version = "0.0.1"
 edition = "2024"
 
 [dependencies]
-chrono = "0.4"
-serde_json = "1.0" # 如果用 sysinfo 获取 IP，可能不再需要
-notify-rust = "4" # 发送桌面通知
+chrono = { version = "0.4", features = ["clock"] }
+once_cell = "1.18"
+libc = "0.2"

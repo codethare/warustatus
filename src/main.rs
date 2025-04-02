@@ -1,42 +1,40 @@
-mod network;
-mod ip;
-mod memory;
-mod battery;
-mod date;
-mod cpu;
+// src/main.rs
+mod modules;
 
-use std::thread;
+use modules::{
+    battery::BatteryInfo,
+    cpu::{CpuLoad, CpuTemp},
+    memory::MemoryInfo,
+    network::{get_ip, NetworkStats},
+    time::current_time,
+};
 use std::time::Duration;
 
-fn main() {
-    // 初始读取 CPU 状态
-    let mut prev_cpu = cpu::read_proc_stat_sync().expect("无法读取 /proc/stat");
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut net_stats = NetworkStats::new();
+    let mut cpu_load = CpuLoad::new()?;
 
     loop {
-        let network_info = network::print_network_speed();
-        let ip_info = ip::print_ip_address();
-        let mem_info = memory::print_mem();
-        let bat_info = battery::print_bat();
-        let date_info = date::print_date();
-        let cpu_usage = match cpu::print_cpu_usage(&prev_cpu) {
-            Some((usage, new_cpu)) => {
-                prev_cpu = new_cpu;
-                usage
-            },
-            None => "N/A".to_string(),
-        };
+        // 收集指标数据
+        net_stats.update();
+        let cpu_usage = cpu_load.update()?;
+        let mem = MemoryInfo::now();
+        let cpu_temp = CpuTemp::now();
+        let bat = BatteryInfo::now();
 
-        let status_parts = vec![
-            mem_info,
-            network_info,
-            ip_info,
+        // 格式化输出
+        println!(
+            "{:.1} | ▲{:.1} ▼{:.1} | {} | {:.0}% {:.1}°C | {} | {}",
+            mem.available_gb(),
+            net_stats.tx_mbps,
+            net_stats.rx_mbps,
+            get_ip(),
             cpu_usage,
-            bat_info,
-            date_info,
-        ];
+            cpu_temp.celsius,
+            bat,
+            current_time()
+        );
 
-        println!("{}", status_parts.join(" "));
-        thread::sleep(Duration::from_secs(2));
+        std::thread::sleep(Duration::from_secs(2));
     }
 }
-
