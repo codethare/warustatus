@@ -5,11 +5,11 @@ mod battery;
 mod date;
 mod cpu;
 
-
 use std::thread;
 use std::time::Duration;
 
 fn main() {
+    // 初始读取 CPU 状态
     let mut prev_cpu = cpu::read_proc_stat_sync().expect("无法读取 /proc/stat");
 
     loop {
@@ -19,11 +19,11 @@ fn main() {
         let bat_info = battery::print_bat();
         let date_info = date::print_date();
         let cpu_usage = match cpu::print_cpu_usage(&prev_cpu) {
-            Some((barchart, new_cpu)) => {
+            Some((usage, new_cpu)) => {
                 prev_cpu = new_cpu;
-                format!("{}", barchart)
+                usage
             },
-            None => "N/A".to_string()
+            None => "N/A".to_string(),
         };
 
         let status_parts = vec![

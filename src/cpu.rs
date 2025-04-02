@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::process::Command;
+use notify_rust::{Notification, Urgency};
 
 #[derive(Clone, Copy)]
 pub struct CpuTime {
@@ -67,10 +67,12 @@ pub fn print_cpu_usage(prev: &(CpuTime, Vec<CpuTime>)) -> Option<(String, (CpuTi
     let new = read_proc_stat_sync()?;
     // 计算总体 CPU 利用率
     let overall_util = new.0.utilization(prev.0);
-    if overall_util > 0.90 {
-        let _ = Command::new("notify-send")
-            .args(&["-u", "critical", "CPU Usage Warning", "CPU usage exceeded 90%"])
-            .output();
+    if overall_util > 90.0 {
+        let _ = Notification::new()
+            .summary("CPU Usage Warning")
+            .body("CPU usage exceeded 90%")
+            .urgency(Urgency::Critical)
+            .show();
     }
     let mut per_core_utilizations = Vec::new();
     if new.1.len() != prev.1.len() {

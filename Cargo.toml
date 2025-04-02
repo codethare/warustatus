@@ -1,11 +1,9 @@
 [package]
 name = "warustatus"
 version = "0.0.1"
-edition = "2018"
+edition = "2024"
 
 [dependencies]
-glob = "0.3"
 chrono = "0.4"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-regex = "1"
+serde_json = "1.0" # 如果用 sysinfo 获取 IP，可能不再需要
+notify-rust = "4" # 发送桌面通知

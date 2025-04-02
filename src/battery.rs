@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::Path;
-use std::process::Command;
+use notify_rust::{Notification, Urgency};
 
 pub fn print_bat() -> String {
     let bat_path = "/sys/class/power_supply/BAT0";
@@ -15,13 +15,17 @@ pub fn print_bat() -> String {
     let status_trimmed = status.trim();
     if status_trimmed == "Discharging" {
         if charge <= 6 {
-            let _ = Command::new("notify-send")
-                .args(&["-u", "critical", "电量警报", &format!("剩余电量：{}%", charge)])
-                .output();
+            let _ = Notification::new()
+                .summary("电量警报")
+                .body(&format!("剩余电量：{}%", charge))
+                .urgency(Urgency::Critical)
+                .show();
         } else if charge <= 15 {
-            let _ = Command::new("notify-send")
-                .args(&["-u", "low", "电量提示", &format!("剩余电量：{}%", charge)])
-                .output();
+            let _ = Notification::new()
+                .summary("电量提示")
+                .body(&format!("剩余电量：{}%", charge))
+                .urgency(Urgency::Low)
+                .show();
         }
     }
     if status_trimmed == "Full" {

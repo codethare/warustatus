@@ -17,4 +17,3 @@ pub fn print_ip_address() -> String {
         "N/A".to_string()
     }
 }
-

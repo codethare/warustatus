@@ -1,4 +1,5 @@
 use std::fs;
+use notify_rust::{Notification, Urgency};
 
 pub fn print_mem() -> String {
     let meminfo = fs::read_to_string("/proc/meminfo").unwrap_or_default();
@@ -12,9 +13,11 @@ pub fn print_mem() -> String {
         }
     }
     if mem_free < 2000 {
-        let _ = std::process::Command::new("notify-send")
-            .args(&["-u", "low", "内存警告", &format!("可用内存：{}MB", mem_free)])
-            .output();
+        let _ = Notification::new()
+            .summary("内存警告")
+            .body(&format!("可用内存：{}MB", mem_free))
+            .urgency(Urgency::Low)
+            .show();
     }
     format!("{}", mem_free)
 }
