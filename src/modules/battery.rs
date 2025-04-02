@@ -1,4 +1,3 @@
-// src/modules/battery.rs
 use std::{fmt, fs, path::Path};
 
 pub struct BatteryInfo {

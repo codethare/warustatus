@@ -1,4 +1,3 @@
-// src/main.rs
 mod modules;
 
 use modules::{
@@ -24,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // 格式化输出
         println!(
-            "{:.1} | ▲{:.1} ▼{:.1} | {} | {:.0}% {:.1}°C | {} | {}",
+            "{:.1} ▲{:.1} ▼{:.1} {} {:.0}% {:.1}°C {} {}",
             mem.available_gb(),
             net_stats.tx_mbps,
             net_stats.rx_mbps,

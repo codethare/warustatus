@@ -1,4 +1,3 @@
-// src/modules/cpu.rs
 use std::fs;
 
 pub struct CpuLoad {

@@ -1,4 +1,3 @@
-// src/modules/time.rs
 use chrono::Local;
 
 pub fn current_time() -> String {
