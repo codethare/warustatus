@@ -16,9 +16,9 @@ impl BatteryInfo {
             }
             if let Ok(stat) = fs::read_to_string("/sys/class/power_supply/BAT0/status") {
                 status = match stat.trim() {
-                    "Charging" => "⚡",
-                    "Discharging" => "▼",
-                    _ => "✔",
+                    "Charging" => "CHARGING",
+                    "Discharging" => "DISCHARGING",
+                    _ => "POWER",
                 }.to_string();
             }
         }
