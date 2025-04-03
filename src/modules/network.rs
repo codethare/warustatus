@@ -1,22 +1,4 @@
-use once_cell::sync::Lazy;
-use std::{fs, path::Path, time::Instant};
-
-pub static IP_CACHE: Lazy<String> = Lazy::new(|| {
-    let mut ip = String::new();
-    if let Ok(routes) = fs::read_to_string("/proc/net/route") {
-        if let Some(iface) = routes
-            .lines()
-            .find(|l| l.starts_with("eth") || l.starts_with("wlan"))
-            .and_then(|l| l.split_whitespace().next())
-        {
-            let addr_path = Path::new("/sys/class/net").join(iface).join("address");
-            if let Ok(addr) = fs::read_to_string(addr_path) {
-                ip = addr.trim().to_string();
-            }
-        }
-    }
-    if ip.is_empty() { "N/A".into() } else { ip }
-});
+use std::{fs, time::Instant};
 
 pub struct NetworkStats {
     pub rx_mbps: f64,
@@ -43,7 +25,7 @@ impl NetworkStats {
 
         self.rx_mbps = (rx - self.last_rx) as f64 / 1_048_576.0 / elapsed.max(0.1);
         self.tx_mbps = (tx - self.last_tx) as f64 / 1_048_576.0 / elapsed.max(0.1);
-        
+
         self.last_rx = rx;
         self.last_tx = tx;
         self.last_time = Instant::now();
@@ -74,8 +56,4 @@ impl NetworkStats {
 
         (rx, tx)
     }
-}
-
-pub fn get_ip() -> &'static str {
-    &IP_CACHE
 }

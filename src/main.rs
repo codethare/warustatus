@@ -4,7 +4,8 @@ use modules::{
     battery::BatteryInfo,
     cpu::{CpuLoad, CpuTemp},
     memory::MemoryInfo,
-    network::{get_ip, NetworkStats},
+    network::{NetworkStats},
+    ip::print_ip_address,
     time::current_time,
 };
 use std::time::Duration;
@@ -16,6 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         // 收集指标数据
         net_stats.update();
+        let ip = print_ip_address();
         let cpu_usage = cpu_load.update()?;
         let mem = MemoryInfo::now();
         let cpu_temp = CpuTemp::now();
@@ -23,11 +25,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // 格式化输出
         println!(
-            "{:.1} ▲{:.1} ▼{:.1} {} {:.0}% {:.1}°C {} {}",
+            "{:.1}  -{:.1} +{:.1}  {}  {:.0}% {:.1}°C  {}  {}",
             mem.available_gb(),
             net_stats.tx_mbps,
             net_stats.rx_mbps,
-            get_ip(),
+            ip,
             cpu_usage,
             cpu_temp.celsius,
             bat,
