@@ -41,9 +41,9 @@ jobs:
       - name: Prepare Release Files
         run: |
           mkdir -p dist
-          cp target/release/warustify dist/
+          cp target/release/warustatus dist/
           cd dist
-          sha256sum warustify > sha256sum.txt
+          sha256sum warustatus > sha256sum.txt
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
