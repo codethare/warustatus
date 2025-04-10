@@ -162,7 +162,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         println!(
-            "{:.1}  -{:.1} +{:.1}  {}  {:.0}%  {}  {}  {}",
+            "{:.1} -{:.1} +{:.1} {} {:.0}% {} {} {}",
             mem_val.available_mb(), // 使用 GB 输出
             net_val.0, // tx_mbps
             net_val.1, // rx_mbps
