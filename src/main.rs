@@ -1,9 +1,12 @@
 use std::{
     collections::HashMap,
-    time::{Duration, Instant},
     sync::Arc,
+    time::{Duration, Instant},
 };
-use tokio::{sync::{watch, Notify}, time::interval};
+use tokio::{
+    sync::{watch, Notify},
+    time::interval,
+};
 
 mod modules;
 use modules::{
@@ -53,14 +56,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 mem.available_mb(),
                 net.0,
                 net.1,
-                *ip,
+                //*ip,
                 cpu,
                 temp_str,
                 *bat,
                 *time
             );
         }
-
     });
 
     // 启动调度器任务
@@ -164,7 +166,9 @@ impl Scheduler {
 
             if self.should_run("net", now, 2) {
                 self.net_monitor.update();
-                let _ = self.net_tx.send((self.net_monitor.tx_mbps, self.net_monitor.rx_mbps));
+                let _ = self
+                    .net_tx
+                    .send((self.net_monitor.tx_mbps, self.net_monitor.rx_mbps));
                 self.notify.notify_one();
             }
 
@@ -186,4 +190,3 @@ impl Scheduler {
         run
     }
 }
-
