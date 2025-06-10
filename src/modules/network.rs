@@ -1,5 +1,7 @@
 use std::{fs, time::Instant};
 
+#[derive(Clone)]
+
 pub struct NetworkStats {
     pub rx_mbps: f64,
     pub tx_mbps: f64,

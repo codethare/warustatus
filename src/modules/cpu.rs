@@ -1,5 +1,7 @@
 use std::fs;
 
+#[derive(Clone)]
+
 // --- CpuLoad 保持不变 ---
 pub struct CpuLoad {
     prev_idle: u64,
