@@ -1,6 +1,6 @@
-use std::{fmt, fs, path::Path};
+use std::{fmt, fs, io, path::Path};
 
-// 添加 Clone, Debug, Default
+// 需要 Clone, 因为 Scheduler 中的 monitor 需要被克隆
 #[derive(Clone, Debug, Default)]
 pub struct BatteryInfo {
     capacity: u8,
@@ -8,39 +8,40 @@ pub struct BatteryInfo {
 }
 
 impl BatteryInfo {
-    pub fn now() -> Result<Self, std::io::Error> {
+    // 这个函数会进行文件 I/O，是阻塞操作，因此返回 Result
+    pub fn now() -> io::Result<Self> {
         let mut capacity = 0;
-        let mut status = "N/A".to_string(); // 默认值
+        let status;
 
-        if Path::new("/sys/class/power_supply/BAT0").exists() {
-            if let Ok(cap_str) = fs::read_to_string("/sys/class/power_supply/BAT0/capacity") {
-                capacity = cap_str.trim().parse().unwrap_or(0);
-            }
+        let bat_path = Path::new("/sys/class/power_supply/BAT0");
 
-            if let Ok(stat_str) = fs::read_to_string("/sys/class/power_supply/BAT0/status") {
-                status = match stat_str.trim() {
-                    "Charging" => "⚡".to_string(), // 使用图标更直观
-                    "Discharging" => "🔋".to_string(),
-                    "Full" => "🔌".to_string(),
-                    _ => "❔".to_string(), // 其他状态如 "Not charging" 等
-                };
-            }
+        if bat_path.exists() {
+            let cap_str = fs::read_to_string(bat_path.join("capacity"))?;
+            capacity = cap_str.trim().parse().unwrap_or(0);
+
+            let stat_str = fs::read_to_string(bat_path.join("status"))?;
+            status = match stat_str.trim() {
+                "Charging" => "".to_string(),    // 充电中
+                "Discharging" => "".to_string(), // 放电中
+                "Full" => "",        // 已充满
+                _ => "battery error".to_string(),            // 未知状态
+            };
         } else {
-            status = "NO BATT".to_string(); // 如果电池路径不存在
+            status = "N/A".to_string(); // 无电池
         }
 
         Ok(Self { capacity, status })
     }
 }
 
-
+// 实现 Display trait 以便能直接打印
 impl fmt::Display for BatteryInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.status == "NO BATT" || self.status == "N/A" {
-            write!(f, "{}", self.status) // 如果没有电池或状态未知，只显示状态
+        if self.status == "N/A" {
+            write!(f, "{}", self.status)
         } else {
-            // 只有当状态不是图标时，才添加空格
-            write!(f, "{}% {}", self.capacity, self.status)
+            // 将状态图标和电量百分比结合起来
+            write!(f, "{}{}%", self.status, self.capacity)
         }
     }
 }
