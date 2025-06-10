@@ -23,7 +23,9 @@ impl MemoryInfo {
             }
         }
 
-        Self { available_mb: available }
+        Self {
+            available_mb: available,
+        }
     }
 
     // 提供获取 MB 的方法
@@ -33,6 +35,6 @@ impl MemoryInfo {
 
     // (可选) 提供获取 GB 的方法 (浮点数)
     pub fn available_gb(&self) -> f64 {
-       (self.available_mb as f64) / 1024.0
+        (self.available_mb as f64) / 1024.0
     }
 }

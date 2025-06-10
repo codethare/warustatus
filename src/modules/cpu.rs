@@ -9,7 +9,10 @@ pub struct CpuLoad {
 impl CpuLoad {
     pub fn new() -> Result<Self, std::io::Error> {
         let (idle, total) = Self::read_stat()?;
-        Ok(Self { prev_idle: idle, prev_total: total })
+        Ok(Self {
+            prev_idle: idle,
+            prev_total: total,
+        })
     }
 
     pub fn update(&mut self) -> Result<f64, std::io::Error> {
@@ -21,7 +24,6 @@ impl CpuLoad {
         }
         let idle_delta = idle.saturating_sub(self.prev_idle);
 
-
         self.prev_idle = idle;
         self.prev_total = total;
 
@@ -30,12 +32,15 @@ impl CpuLoad {
         Ok((usage * 100.0).max(0.0))
     }
 
-
     fn read_stat() -> Result<(u64, u64), std::io::Error> {
         let content = fs::read_to_string("/proc/stat")?;
-        let line = content.lines().next().ok_or(std::io::ErrorKind::InvalidData)?;
+        let line = content
+            .lines()
+            .next()
+            .ok_or(std::io::ErrorKind::InvalidData)?;
 
-        let values: Vec<u64> = line.split_whitespace()
+        let values: Vec<u64> = line
+            .split_whitespace()
             .skip(1) // 跳过 "cpu"
             .filter_map(|s| s.parse().ok())
             .collect();
@@ -59,19 +64,25 @@ impl CpuTemp {
         let mut found_temp = false; // 标记是否找到任何温度读数
         if let Ok(dir) = fs::read_dir("/sys/class/thermal") {
             for entry in dir.filter_map(Result::ok) {
-                 // 通常 thermal_zone* 是 CPU 温度
-                if entry.file_name().to_string_lossy().starts_with("thermal_zone") {
+                // 通常 thermal_zone* 是 CPU 温度
+                if entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("thermal_zone")
+                {
                     let path = entry.path().join("temp");
-                     // 检查 type 文件确定是否是 CPU 相关温度 (可选，增加准确性)
+                    // 检查 type 文件确定是否是 CPU 相关温度 (可选，增加准确性)
                     let type_path = entry.path().join("type");
                     let is_cpu_temp = fs::read_to_string(type_path)
-                                        .map(|s| s.contains("x86_pkg_temp") || s.contains("cpu")) // 根据实际情况调整
-                                        .unwrap_or(false);
+                        .map(|s| s.contains("x86_pkg_temp") || s.contains("cpu")) // 根据实际情况调整
+                        .unwrap_or(false);
 
-                    if !is_cpu_temp { continue; } // 如果类型不匹配，跳过
+                    if !is_cpu_temp {
+                        continue;
+                    } // 如果类型不匹配，跳过
 
-
-                    if let Ok(temp) = fs::read_to_string(&path) { // 使用引用避免所有权问题
+                    if let Ok(temp) = fs::read_to_string(&path) {
+                        // 使用引用避免所有权问题
                         if let Ok(t) = temp.trim().parse::<f32>() {
                             max_temp = max_temp.max(t / 1000.0);
                             found_temp = true; // 至少找到了一个读数
@@ -80,10 +91,10 @@ impl CpuTemp {
                 }
             }
         }
-         // 如果没有找到温度，返回一个特殊值或保持 0.0
+        // 如果没有找到温度，返回一个特殊值或保持 0.0
         if !found_temp {
             // 可以选择返回一个特定的值，比如 f32::NAN，并在打印时处理
-             return Self { celsius: -1.0 }; // 用 -1.0 表示未找到
+            return Self { celsius: -1.0 }; // 用 -1.0 表示未找到
         }
         Self { celsius: max_temp }
     }

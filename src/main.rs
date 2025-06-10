@@ -12,7 +12,6 @@ mod modules;
 use modules::{
     battery::BatteryInfo,
     cpu::{CpuLoad, CpuTemp},
-    ip::print_ip_address,
     memory::MemoryInfo,
     network::NetworkStats,
     time::current_time as get_current_time,
@@ -25,7 +24,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (cpu_load_tx, cpu_load_rx) = watch::channel(0.0);
     let (mem_tx, mem_rx) = watch::channel(MemoryInfo::default());
     let (cpu_temp_tx, cpu_temp_rx) = watch::channel(CpuTemp::default());
-    let (ip_tx, ip_rx) = watch::channel("N/A".into());
     let (net_tx, net_rx) = watch::channel((0.0, 0.0));
     let (time_tx, time_rx) = watch::channel(get_current_time());
 
@@ -41,7 +39,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let cpu = *cpu_load_rx.borrow(); // f64 是 Copy，直接解引用
             let mem = mem_rx.borrow();
             let temp = cpu_temp_rx.borrow();
-            let ip = ip_rx.borrow();
             let net = *net_rx.borrow(); // tuple (f64, f64) 是 Copy
             let time = time_rx.borrow();
 
@@ -56,7 +53,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 mem.available_mb(),
                 net.0,
                 net.1,
-                //*ip,
                 cpu,
                 temp_str,
                 *bat,
@@ -71,7 +67,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         cpu_load_tx,
         mem_tx,
         cpu_temp_tx,
-        ip_tx,
         net_tx,
         time_tx,
         notify,
@@ -89,7 +84,6 @@ struct Scheduler {
     cpu_load_tx: watch::Sender<f64>,
     mem_tx: watch::Sender<MemoryInfo>,
     cpu_temp_tx: watch::Sender<CpuTemp>,
-    ip_tx: watch::Sender<String>,
     net_tx: watch::Sender<(f64, f64)>,
     time_tx: watch::Sender<String>,
     cpu_monitor: CpuLoad,
@@ -102,7 +96,6 @@ impl Scheduler {
         cpu_load_tx: watch::Sender<f64>,
         mem_tx: watch::Sender<MemoryInfo>,
         cpu_temp_tx: watch::Sender<CpuTemp>,
-        ip_tx: watch::Sender<String>,
         net_tx: watch::Sender<(f64, f64)>,
         time_tx: watch::Sender<String>,
         notify: Arc<Notify>,
@@ -114,7 +107,6 @@ impl Scheduler {
             cpu_load_tx,
             mem_tx,
             cpu_temp_tx,
-            ip_tx,
             net_tx,
             time_tx,
             cpu_monitor: CpuLoad::new().unwrap(),
@@ -153,13 +145,6 @@ impl Scheduler {
             if self.should_run("temp", now, 30) {
                 if let Ok(data) = tokio::task::spawn_blocking(CpuTemp::now).await {
                     let _ = self.cpu_temp_tx.send(data);
-                    self.notify.notify_one();
-                }
-            }
-
-            if self.should_run("ip", now, 60) {
-                if let Ok(data) = tokio::task::spawn_blocking(print_ip_address).await {
-                    let _ = self.ip_tx.send(data);
                     self.notify.notify_one();
                 }
             }
