@@ -20,12 +20,12 @@ use modules::{
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 所有 watch channel
-    let (bat_tx, bat_rx) = watch::channel(BatteryInfo::default());
-    let (cpu_load_tx, cpu_load_rx) = watch::channel(0.0);
-    let (mem_tx, mem_rx) = watch::channel(MemoryInfo::default());
-    let (cpu_temp_tx, cpu_temp_rx) = watch::channel(CpuTemp::default());
-    let (net_tx, net_rx) = watch::channel((0.0, 0.0));
-    let (time_tx, time_rx) = watch::channel(get_current_time());
+    let (bat_tx, mut bat_rx) = watch::channel(BatteryInfo::default());
+    let (cpu_load_tx, mut cpu_load_rx) = watch::channel(0.0);
+    let (mem_tx, mut mem_rx) = watch::channel(MemoryInfo::default());
+    let (cpu_temp_tx, mut cpu_temp_rx) = watch::channel(CpuTemp::default());
+    let (net_tx, mut net_rx) = watch::channel((0.0, 0.0));
+    let (time_tx, mut time_rx) = watch::channel(get_current_time());
 
     let notify = Arc::new(Notify::new());
     let print_notify = notify.clone();
@@ -35,34 +35,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         loop {
             print_notify.notified().await;
 
-            let bat = bat_rx.borrow(); // 引用（BatteryInfo 非 Copy）
-            let cpu = *cpu_load_rx.borrow(); // f64 是 Copy，直接解引用
-            let mem = mem_rx.borrow();
-            let temp = cpu_temp_rx.borrow();
-            let net = *net_rx.borrow(); // tuple (f64, f64) 是 Copy
-            let time = time_rx.borrow();
+            // 使用 a guard 来确保锁在作用域结束时被释放
+            let bat_guard = bat_rx.borrow_and_update();
+            let cpu_guard = cpu_load_rx.borrow_and_update();
+            let mem_guard = mem_rx.borrow_and_update();
+            let temp_guard = cpu_temp_rx.borrow_and_update();
+            let net_guard = net_rx.borrow_and_update();
+            let time_guard = time_rx.borrow_and_update();
+            
+            let bat = &*bat_guard;
+            let cpu = *cpu_guard; // f64 是 Copy，直接解引用
+            let mem = &*mem_guard;
+            let temp = &*temp_guard;
+            let net = *net_guard; // tuple (f64, f64) 是 Copy
+            let time = &*time_guard;
+
 
             let temp_str = if temp.celsius < 0.0 {
-                "N/A".into()
+                "N/A".to_string()
             } else {
                 format!("{:.1}°C", temp.celsius)
             };
 
             println!(
-                "{:.1} -{:.1} +{:.1} {} {:.0}% {} {} {}",
+                "Mem:{:.1}G | Net:-{:.1}M/+{:.1}M | CPU:{:.1}% {} | {} | {}",
                 mem.available_mb(),
                 net.0,
                 net.1,
                 cpu,
                 temp_str,
-                *bat,
-                *time
+                bat,
+                time
             );
         }
     });
 
     // 启动调度器任务
-    Scheduler::new(
+    let mut scheduler = Scheduler::new(
         bat_tx,
         cpu_load_tx,
         mem_tx,
@@ -70,9 +79,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         net_tx,
         time_tx,
         notify,
-    )
-    .run()
-    .await;
+    )?;
+    scheduler.run().await;
 
     Ok(())
 }
@@ -99,8 +107,8 @@ impl Scheduler {
         net_tx: watch::Sender<(f64, f64)>,
         time_tx: watch::Sender<String>,
         notify: Arc<Notify>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(Self {
             last_run: HashMap::new(),
             notify,
             bat_tx,
@@ -109,57 +117,93 @@ impl Scheduler {
             cpu_temp_tx,
             net_tx,
             time_tx,
-            cpu_monitor: CpuLoad::new().unwrap(),
+            cpu_monitor: CpuLoad::new()?,
             net_monitor: NetworkStats::new(),
-        }
+        })
     }
 
-    async fn run(mut self) {
+    async fn run(&mut self) {
         let mut ticker = interval(Duration::from_millis(500));
         loop {
             ticker.tick().await;
             let now = Instant::now();
 
-            // 任务调度区
+            // --- 任务调度区 ---
+
+            // 电池信息 (每 60 秒)
             if self.should_run("bat", now, 60) {
-                if let Ok(data) = tokio::task::spawn_blocking(BatteryInfo::now).await {
-                    let _ = self.bat_tx.send(data);
-                    self.notify.notify_one();
-                }
+                let tx = self.bat_tx.clone();
+                let notify = self.notify.clone();
+                tokio::spawn(async move {
+                    if let Ok(Ok(data)) = tokio::task::spawn_blocking(BatteryInfo::now).await {
+                        if tx.send(data).is_ok() {
+                            notify.notify_one();
+                        }
+                    }
+                });
             }
 
+            // CPU 负载 (每 10 秒)
             if self.should_run("cpu", now, 10) {
-                if let Ok(val) = self.cpu_monitor.update() {
-                    let _ = self.cpu_load_tx.send(val);
-                    self.notify.notify_one();
-                }
+                let tx = self.cpu_load_tx.clone();
+                let notify = self.notify.clone();
+                // `update` 是同步的，可能会阻塞，所以使用 spawn_blocking
+                // 我们需要克隆 monitor 或者使用 Arc<Mutex<>>
+                let mut cpu_monitor = self.cpu_monitor.clone();
+                tokio::spawn(async move {
+                    if let Ok(Ok(val)) = tokio::task::spawn_blocking(move || cpu_monitor.update()).await {
+                        if tx.send(val).is_ok() {
+                           notify.notify_one();
+                        }
+                    }
+                });
             }
 
+            // 内存信息 (每 10 秒)
             if self.should_run("mem", now, 10) {
-                if let Ok(data) = tokio::task::spawn_blocking(MemoryInfo::now).await {
-                    let _ = self.mem_tx.send(data);
-                    self.notify.notify_one();
-                }
+                let tx = self.mem_tx.clone();
+                let notify = self.notify.clone();
+                tokio::spawn(async move {
+                    if let Ok(Ok(data)) = tokio::task::spawn_blocking(MemoryInfo::now).await {
+                       if tx.send(data).is_ok() {
+                           notify.notify_one();
+                       }
+                    }
+                });
             }
 
+            // CPU 温度 (每 30 秒)
             if self.should_run("temp", now, 30) {
-                if let Ok(data) = tokio::task::spawn_blocking(CpuTemp::now).await {
-                    let _ = self.cpu_temp_tx.send(data);
+                let tx = self.cpu_temp_tx.clone();
+                let notify = self.notify.clone();
+                tokio::spawn(async move {
+                    if let Ok(Ok(data)) = tokio::task::spawn_blocking(CpuTemp::now).await {
+                        if tx.send(data).is_ok() {
+                            notify.notify_one();
+                        }
+                    }
+                });
+            }
+
+            // 网络速度 (每 2 秒)
+            if self.should_run("net", now, 2) {
+                 let tx = self.net_tx.clone();
+                 let notify = self.notify.clone();
+                 let mut net_monitor = self.net_monitor.clone();
+                 tokio::spawn(async move {
+                     if let Ok(Ok(_)) = tokio::task::spawn_blocking(move || net_monitor.update()).await {
+                        if tx.send((net_monitor.tx_mbps, net_monitor.rx_mbps)).is_ok() {
+                            notify.notify_one();
+                        }
+                     }
+                 });
+            }
+
+            // 当前时间 (每 60 秒)
+            if self.should_run("time", now, 60) {
+                if self.time_tx.send(get_current_time()).is_ok() {
                     self.notify.notify_one();
                 }
-            }
-
-            if self.should_run("net", now, 2) {
-                self.net_monitor.update();
-                let _ = self
-                    .net_tx
-                    .send((self.net_monitor.tx_mbps, self.net_monitor.rx_mbps));
-                self.notify.notify_one();
-            }
-
-            if self.should_run("time", now, 60) {
-                let _ = self.time_tx.send(get_current_time());
-                self.notify.notify_one();
             }
         }
     }
