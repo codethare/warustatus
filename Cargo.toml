@@ -4,5 +4,7 @@ version = "0.0.1"
 edition = "2021"
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
-chrono = { version = "0.4", features = ["clock"] }
+# tokio = { version = "1", features = ["full"] }
+# chrono = { version = "0.4", features = ["clock"] }
+sysinfo = "0.29.2"
+chrono = "0.4.24"
